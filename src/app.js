@@ -31,6 +31,15 @@ app.use(morgan("dev"));
 // Public routes (no user context required)
 app.get("/", (req, res) => res.json({ name: "SmartBooks AI API", status: "ok" }));
 app.get("/api/health", (req, res) => res.json({ status: "healthy", timestamp: new Date().toISOString() }));
+app.get("/api/env-check", (req, res) =>
+  res.json({
+    mongodbUriConfigured: Boolean(process.env.MONGODB_URI),
+    mongodbDbName: process.env.MONGODB_DB_NAME || "smartbooks",
+    mongodbUsersCollection: process.env.MONGODB_USERS_COLLECTION || "users",
+    demoUserId: process.env.DEMO_USER_ID || "demo-user",
+    nodeEnv: process.env.NODE_ENV || "development"
+  })
+);
 app.use("/api/demo", demoRoutes);
 
 // Everything under /api requires a user context (Clerk userId via x-user-id header)
