@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { DEMO_USER_ID, DEMO_USER_PROFILE } from "../db/demoUser.js";
+import { isMongoConfigured } from "../db/mongo.js";
 import { getOrCreateUser } from "../db/store.js";
 import { bootstrapPayload } from "./meta.js";
 
@@ -15,6 +16,10 @@ router.get("/", (req, res) => {
 });
 
 router.get("/bootstrap", async (req, res) => {
+  if (process.env.VERCEL && !isMongoConfigured()) {
+    return res.status(500).json({ error: "MONGODB_URI is not configured in Vercel environment variables" });
+  }
+
   try {
     const store = await getOrCreateUser(DEMO_USER_ID, DEMO_USER_PROFILE);
     res.json(bootstrapPayload(store));

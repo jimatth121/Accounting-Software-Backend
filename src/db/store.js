@@ -12,13 +12,17 @@ const DATA_FILE = path.join(DATA_DIR, "users.json");
 let users = {};
 const loadedUserIds = new Set();
 
+function canUseLocalDataFile() {
+  return !process.env.VERCEL;
+}
+
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, "{}");
 }
 
 function loadUsers() {
-  if (isMongoConfigured()) return;
+  if (isMongoConfigured() || !canUseLocalDataFile()) return;
 
   ensureDataFile();
   try {
@@ -47,6 +51,11 @@ export async function save() {
 
     const collection = await getUsersCollection();
     await collection.bulkWrite(writes);
+    return;
+  }
+
+  if (!canUseLocalDataFile()) {
+    console.warn("Skipping local data file write because this runtime is read-only.");
     return;
   }
 
