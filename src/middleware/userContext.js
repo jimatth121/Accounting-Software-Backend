@@ -1,6 +1,6 @@
 import { getOrCreateUser, save } from "../db/store.js";
 
-export function userContext(req, res, next) {
+export async function userContext(req, res, next) {
   const userId = req.header("x-user-id");
   if (!userId) {
     return res.status(401).json({ error: "Missing x-user-id header" });
@@ -17,12 +17,24 @@ export function userContext(req, res, next) {
   }
 
   req.userId = userId;
-  req.store = getOrCreateUser(userId, profile);
+  try {
+    req.store = await getOrCreateUser(userId, profile);
+  } catch (error) {
+    console.error("Failed to load user store:", error);
+    return res.status(500).json({ error: "Failed to load user data" });
+  }
 
-  // Persist any mutations after the response is sent.
-  res.on("finish", () => {
-    save();
-  });
+  const end = res.end;
+  res.end = function endWithSave(...args) {
+    save()
+      .catch((error) => {
+        console.error("Failed to save user store:", error);
+      })
+      .finally(() => {
+        end.apply(res, args);
+      });
+    return res;
+  };
 
   next();
 }

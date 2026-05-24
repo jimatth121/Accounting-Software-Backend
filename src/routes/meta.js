@@ -6,9 +6,8 @@ import { detectAnomalies } from "../services/anomalies.js";
 
 const router = Router();
 
-router.get("/", (req, res) => {
-  const store = req.store;
-  res.json({
+export function bootstrapPayload(store) {
+  return {
     company: store.company,
     customers: store.customers,
     vendors: store.vendors,
@@ -19,7 +18,11 @@ router.get("/", (req, res) => {
     dashboard: dashboard(store),
     reports: { profitAndLoss: profitAndLoss(store) },
     anomalies: detectAnomalies(store)
-  });
+  };
+}
+
+router.get("/", (req, res) => {
+  res.json(bootstrapPayload(req.store));
 });
 
 export default router;

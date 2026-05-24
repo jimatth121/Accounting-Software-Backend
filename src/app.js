@@ -4,6 +4,7 @@ import morgan from "morgan";
 
 import { userContext } from "./middleware/userContext.js";
 
+import demoRoutes from "./routes/demo.js";
 import metaRoutes from "./routes/meta.js";
 import accountRoutes from "./routes/account.js";
 import companyRoutes from "./routes/company.js";
@@ -30,6 +31,7 @@ app.use(morgan("dev"));
 // Public routes (no user context required)
 app.get("/", (req, res) => res.json({ name: "SmartBooks AI API", status: "ok" }));
 app.get("/api/health", (req, res) => res.json({ status: "healthy", timestamp: new Date().toISOString() }));
+app.use("/api/demo", demoRoutes);
 
 // Everything under /api requires a user context (Clerk userId via x-user-id header)
 app.use("/api", userContext);
