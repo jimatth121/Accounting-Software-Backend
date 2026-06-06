@@ -86,6 +86,27 @@ export function seedForUser({ profile = {} } = {}) {
       { id: "acc_13", code: "5400", name: "Office Supplies", type: "Expense", subtype: "Office", isSystemAccount: false, isActive: true },
       { id: "acc_14", code: "5500", name: "Contract Labor", type: "Expense", subtype: "Payroll", isSystemAccount: false, isActive: true },
       { id: "acc_15", code: "5600", name: "Marketing", type: "Expense", subtype: "Marketing", isSystemAccount: false, isActive: true }
-    ]
+    ],
+    inventory: [
+      { id: "itm_1", sku: "SKU-1001", name: "Branded notebook", category: "Office", quantity: 120, reorderLevel: 30, unitCost: 1200, unitPrice: 2500, createdAt: timestamp, updatedAt: timestamp },
+      { id: "itm_2", sku: "SKU-1002", name: "USB-C hub", category: "Electronics", quantity: 18, reorderLevel: 10, unitCost: 9500, unitPrice: 15000, createdAt: timestamp, updatedAt: timestamp },
+      { id: "itm_3", sku: "SKU-1003", name: "Ergonomic mouse", category: "Electronics", quantity: 6, reorderLevel: 8, unitCost: 7800, unitPrice: 13500, createdAt: timestamp, updatedAt: timestamp },
+      { id: "itm_4", sku: "SKU-1004", name: "Standing desk mat", category: "Office", quantity: 22, reorderLevel: 5, unitCost: 18000, unitPrice: 32000, createdAt: timestamp, updatedAt: timestamp }
+    ],
+    preferences: {
+      notifications: {
+        invoiceReminders: true,
+        paymentReceived: true,
+        overdueAlerts: true,
+        weeklyDigest: false,
+        productUpdates: false,
+        emailMarketing: false
+      },
+      theme: "light",
+      language: "English",
+      dateFormat: "DD MMM YYYY",
+      autoBackup: true,
+      updatedAt: timestamp
+    }
   };
 }

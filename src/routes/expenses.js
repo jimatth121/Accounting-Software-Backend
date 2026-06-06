@@ -28,4 +28,33 @@ router.post("/", (req, res) => {
   res.status(201).json(enrichExpense(store, expense));
 });
 
+router.patch("/:id", (req, res) => {
+  const store = req.store;
+  const idx = store.expenses.findIndex((item) => item.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Expense not found" });
+
+  const current = store.expenses[idx];
+  const { id, createdAt, ...patch } = req.body || {};
+  const updated = {
+    ...current,
+    ...patch,
+    id: current.id,
+    amount: patch.amount != null ? money(patch.amount) : current.amount,
+    taxAmount: patch.taxAmount != null ? money(patch.taxAmount) : current.taxAmount,
+    billable: patch.billable != null ? Boolean(patch.billable) : current.billable,
+    updatedAt: now()
+  };
+  store.expenses[idx] = updated;
+  res.json(enrichExpense(store, updated));
+});
+
+router.delete("/:id", (req, res) => {
+  const store = req.store;
+  const before = store.expenses.length;
+  store.expenses = store.expenses.filter((item) => item.id !== req.params.id);
+  if (store.expenses.length === before) return res.status(404).json({ error: "Expense not found" });
+  store.payments = store.payments.filter((payment) => payment.expenseId !== req.params.id);
+  res.json({ ok: true, id: req.params.id });
+});
+
 export default router;

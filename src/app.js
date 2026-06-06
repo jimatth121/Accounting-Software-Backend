@@ -13,6 +13,8 @@ import vendorsRoutes from "./routes/vendors.js";
 import invoicesRoutes from "./routes/invoices.js";
 import expensesRoutes from "./routes/expenses.js";
 import paymentsRoutes from "./routes/payments.js";
+import inventoryRoutes from "./routes/inventory.js";
+import preferencesRoutes from "./routes/preferences.js";
 import reportsRoutes from "./routes/reports.js";
 import aiRoutes from "./routes/ai.js";
 
@@ -53,6 +55,8 @@ app.use("/api/vendors", vendorsRoutes);
 app.use("/api/invoices", invoicesRoutes);
 app.use("/api/expenses", expensesRoutes);
 app.use("/api/payments", paymentsRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/preferences", preferencesRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/ai", aiRoutes);
 

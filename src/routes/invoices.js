@@ -66,4 +66,38 @@ router.post("/:id/mark-paid", (req, res) => {
   res.json({ invoice: enrichInvoice(store, invoice), payment });
 });
 
+router.patch("/:id", (req, res) => {
+  const store = req.store;
+  const idx = store.invoices.findIndex((item) => item.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Invoice not found" });
+
+  const current = store.invoices[idx];
+  const { id, invoiceNumber, createdAt, items, amountPaid, ...patch } = req.body || {};
+  const nextItems = items?.length ? items : current.items;
+  const totals = invoiceTotals(nextItems);
+  const nextAmountPaid = amountPaid != null ? money(amountPaid) : current.amountPaid;
+  const updated = {
+    ...current,
+    ...patch,
+    id: current.id,
+    invoiceNumber: current.invoiceNumber,
+    items: nextItems,
+    ...totals,
+    amountPaid: nextAmountPaid,
+    balanceDue: Math.max(totals.totalAmount - nextAmountPaid, 0),
+    updatedAt: now()
+  };
+  store.invoices[idx] = updated;
+  res.json(enrichInvoice(store, updated));
+});
+
+router.delete("/:id", (req, res) => {
+  const store = req.store;
+  const before = store.invoices.length;
+  store.invoices = store.invoices.filter((item) => item.id !== req.params.id);
+  if (store.invoices.length === before) return res.status(404).json({ error: "Invoice not found" });
+  store.payments = store.payments.filter((payment) => payment.invoiceId !== req.params.id);
+  res.json({ ok: true, id: req.params.id });
+});
+
 export default router;

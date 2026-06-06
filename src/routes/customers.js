@@ -11,4 +11,22 @@ router.post("/", (req, res) => {
   res.status(201).json(customer);
 });
 
+router.patch("/:id", (req, res) => {
+  const store = req.store;
+  const idx = store.customers.findIndex((item) => item.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Customer not found" });
+
+  const { id, createdAt, ...patch } = req.body || {};
+  store.customers[idx] = { ...store.customers[idx], ...patch, id: store.customers[idx].id, updatedAt: now() };
+  res.json(store.customers[idx]);
+});
+
+router.delete("/:id", (req, res) => {
+  const store = req.store;
+  const before = store.customers.length;
+  store.customers = store.customers.filter((item) => item.id !== req.params.id);
+  if (store.customers.length === before) return res.status(404).json({ error: "Customer not found" });
+  res.json({ ok: true, id: req.params.id });
+});
+
 export default router;

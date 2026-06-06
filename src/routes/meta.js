@@ -15,6 +15,8 @@ export function bootstrapPayload(store) {
     expenses: store.expenses.map((expense) => enrichExpense(store, expense)),
     payments: store.payments,
     accounts: store.accounts,
+    inventory: Array.isArray(store.inventory) ? store.inventory : [],
+    preferences: store.preferences || null,
     dashboard: dashboard(store),
     reports: { profitAndLoss: profitAndLoss(store) },
     anomalies: detectAnomalies(store)
