@@ -15,6 +15,8 @@ import expensesRoutes from "./routes/expenses.js";
 import paymentsRoutes from "./routes/payments.js";
 import inventoryRoutes from "./routes/inventory.js";
 import preferencesRoutes from "./routes/preferences.js";
+import ledgerRoutes from "./routes/ledger.js";
+import salesRoutes from "./routes/sales.js";
 import reportsRoutes from "./routes/reports.js";
 import aiRoutes from "./routes/ai.js";
 
@@ -57,6 +59,8 @@ app.use("/api/expenses", expensesRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/preferences", preferencesRoutes);
+app.use("/api/ledger", ledgerRoutes);
+app.use("/api/sales", salesRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/ai", aiRoutes);
 
