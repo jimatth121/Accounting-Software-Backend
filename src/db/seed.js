@@ -1,6 +1,7 @@
 import { now } from "../utils/helpers.js";
+import { defaultPermissions } from "../services/access.js";
 
-export function seedForUser({ profile = {} } = {}) {
+export function seedForUser({ profile = {}, ownerUserId } = {}) {
   const timestamp = now();
   const company = {
     id: "company_1",
@@ -93,6 +94,20 @@ export function seedForUser({ profile = {} } = {}) {
       { id: "itm_3", sku: "SKU-1003", name: "Ergonomic mouse", category: "Electronics", quantity: 6, reorderLevel: 8, unitCost: 7800, unitPrice: 13500, createdAt: timestamp, updatedAt: timestamp },
       { id: "itm_4", sku: "SKU-1004", name: "Standing desk mat", category: "Office", quantity: 22, reorderLevel: 5, unitCost: 18000, unitPrice: 32000, createdAt: timestamp, updatedAt: timestamp }
     ],
+    members: [
+      {
+        id: "mem_owner",
+        name: profile.name || "Account Owner",
+        email: profile.email || "",
+        role: "Administrator",
+        status: "active",
+        clerkUserId: ownerUserId || "",
+        isOwner: true,
+        invitedAt: timestamp,
+        joinedAt: timestamp
+      }
+    ],
+    permissions: defaultPermissions(),
     preferences: {
       notifications: {
         invoiceReminders: true,

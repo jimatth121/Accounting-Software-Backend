@@ -1,10 +1,20 @@
 import { Router } from "express";
 import { money, now, today, uid } from "../utils/helpers.js";
 import { enrichExpense } from "../services/expenses.js";
+import { paginate } from "../utils/pagination.js";
 
 const router = Router();
 
-router.get("/", (req, res) => res.json(req.store.expenses.map((expense) => enrichExpense(req.store, expense))));
+router.get("/", (req, res) => {
+  const { category, vendorId, status, dateFrom, dateTo } = req.query;
+  let rows = req.store.expenses.map((expense) => enrichExpense(req.store, expense));
+  if (category) rows = rows.filter((row) => row.category === category);
+  if (vendorId) rows = rows.filter((row) => row.vendorId === vendorId);
+  if (status) rows = rows.filter((row) => row.status === status);
+  if (dateFrom) rows = rows.filter((row) => (row.expenseDate || "") >= dateFrom);
+  if (dateTo) rows = rows.filter((row) => (row.expenseDate || "") <= dateTo);
+  res.json(paginate(rows, req.query, ["description", "vendorName", "category", "paymentMethod"]));
+});
 
 router.post("/", (req, res) => {
   const store = req.store;

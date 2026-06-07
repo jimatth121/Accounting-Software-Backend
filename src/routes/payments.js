@@ -1,9 +1,18 @@
 import { Router } from "express";
 import { money, now, today, uid } from "../utils/helpers.js";
+import { paginate } from "../utils/pagination.js";
 
 const router = Router();
 
-router.get("/", (req, res) => res.json(req.store.payments));
+router.get("/", (req, res) => {
+  const { paymentType, paymentMethod, dateFrom, dateTo } = req.query;
+  let rows = req.store.payments;
+  if (paymentType) rows = rows.filter((row) => row.paymentType === paymentType);
+  if (paymentMethod) rows = rows.filter((row) => row.paymentMethod === paymentMethod);
+  if (dateFrom) rows = rows.filter((row) => (row.paymentDate || row.createdAt || "") >= dateFrom);
+  if (dateTo) rows = rows.filter((row) => (row.paymentDate || row.createdAt || "") <= dateTo);
+  res.json(paginate(rows, req.query, ["reference", "notes", "paymentMethod"]));
+});
 
 router.post("/", (req, res) => {
   const store = req.store;

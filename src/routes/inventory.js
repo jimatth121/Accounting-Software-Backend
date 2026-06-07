@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { money, now, uid } from "../utils/helpers.js";
+import { paginate } from "../utils/pagination.js";
 
 const router = Router();
 
@@ -8,7 +9,15 @@ function ensureList(store) {
   return store.inventory;
 }
 
-router.get("/", (req, res) => res.json(ensureList(req.store)));
+router.get("/", (req, res) => {
+  const { category, stock } = req.query;
+  let rows = ensureList(req.store);
+  if (category) rows = rows.filter((row) => row.category === category);
+  if (stock === "low") rows = rows.filter((row) => row.quantity <= row.reorderLevel);
+  else if (stock === "out") rows = rows.filter((row) => row.quantity <= 0);
+  else if (stock === "ok") rows = rows.filter((row) => row.quantity > row.reorderLevel);
+  res.json(paginate(rows, req.query, ["sku", "name", "category"]));
+});
 
 router.post("/", (req, res) => {
   const store = req.store;

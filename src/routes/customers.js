@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { now, uid } from "../utils/helpers.js";
+import { paginate } from "../utils/pagination.js";
 
 const router = Router();
 
-router.get("/", (req, res) => res.json(req.store.customers));
+router.get("/", (req, res) =>
+  res.json(paginate(req.store.customers, req.query, ["name", "companyName", "email", "phone", "address", "taxId"]))
+);
 
 router.post("/", (req, res) => {
   const customer = { id: uid("cus"), openingBalance: 0, notes: "", ...req.body, createdAt: now(), updatedAt: now() };

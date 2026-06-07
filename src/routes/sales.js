@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { money, now, today, uid } from "../utils/helpers.js";
-import { enrichInvoice, invoiceTotals, nextInvoiceNumber } from "../services/invoices.js";
+import {
+  applyInventoryDeductions,
+  enrichInvoice,
+  invoiceTotals,
+  nextInvoiceNumber,
+  resolveInvoiceItems
+} from "../services/invoices.js";
 
 const router = Router();
 
@@ -13,63 +19,82 @@ router.post("/quick", (req, res) => {
   const store = req.store;
   const body = req.body || {};
 
-  if (!body.customerId) return res.status(400).json({ error: "customerId is required" });
-  const customer = (store.customers || []).find((c) => c.id === body.customerId);
-  if (!customer) return res.status(404).json({ error: "Customer not found" });
+  // Resolve customer — accept an existing customerId OR a typed-in customerName.
+  // A typed-in name that matches an existing customer (case-insensitive) is reused;
+  // otherwise a brand-new customer record is created so the workspace can keep
+  // track of them.
+  if (!Array.isArray(store.customers)) store.customers = [];
+  let customer = null;
+  let customerCreated = false;
+  if (body.customerId) {
+    customer = store.customers.find((c) => c.id === body.customerId);
+    if (!customer) return res.status(404).json({ error: "Customer not found" });
+  } else if (body.customerName && String(body.customerName).trim()) {
+    const name = String(body.customerName).trim();
+    customer = store.customers.find((c) => (c.name || "").toLowerCase() === name.toLowerCase());
+    if (!customer) {
+      customer = {
+        id: uid("cus"),
+        name,
+        companyName: "",
+        email: "",
+        phone: "",
+        address: "",
+        taxId: "",
+        openingBalance: 0,
+        notes: "Created from a quick sale",
+        createdAt: now(),
+        updatedAt: now()
+      };
+      store.customers.push(customer);
+      customerCreated = true;
+    }
+  } else {
+    return res.status(400).json({ error: "customerId or customerName is required" });
+  }
 
   const inputItems = Array.isArray(body.items) && body.items.length ? body.items : [];
   if (!inputItems.length) return res.status(400).json({ error: "At least one line item is required" });
 
-  if (!Array.isArray(store.inventory)) store.inventory = [];
-
-  // Resolve each line item — if inventoryId provided, link & validate stock
-  const resolvedItems = [];
-  for (const raw of inputItems) {
-    const quantity = Math.max(1, Number(raw.quantity) || 1);
-    let description = raw.description || "Item";
-    let unitPrice = money(raw.unitPrice);
-    const taxRate = Number(raw.taxRate) || 0;
-    const discountAmount = money(raw.discountAmount);
-    let inventoryItem = null;
-
-    if (raw.inventoryId) {
-      inventoryItem = store.inventory.find((item) => item.id === raw.inventoryId);
-      if (!inventoryItem) {
-        return res.status(404).json({ error: `Inventory item ${raw.inventoryId} not found` });
-      }
-      if (inventoryItem.quantity < quantity) {
-        return res
-          .status(400)
-          .json({ error: `Insufficient stock for ${inventoryItem.name} (have ${inventoryItem.quantity}, need ${quantity})` });
-      }
-      description = raw.description || inventoryItem.name;
-      if (!raw.unitPrice) unitPrice = money(inventoryItem.unitPrice);
-    }
-
-    resolvedItems.push({
-      description,
-      quantity,
-      unitPrice,
-      taxRate,
-      discountAmount,
-      inventoryId: inventoryItem ? inventoryItem.id : null
-    });
-  }
+  // Resolve each line item — inventory-backed items are linked & stock-checked,
+  // manually typed items pass through as-is.
+  const resolved = resolveInvoiceItems(store, inputItems);
+  if (resolved.error) return res.status(resolved.error.status).json({ error: resolved.error.message });
+  const resolvedItems = resolved.items;
 
   // Apply inventory deductions only after all validations pass
-  for (const item of resolvedItems) {
-    if (!item.inventoryId) continue;
-    const inventoryItem = store.inventory.find((entry) => entry.id === item.inventoryId);
-    inventoryItem.quantity = Math.max(0, inventoryItem.quantity - item.quantity);
-    inventoryItem.updatedAt = now();
-  }
+  applyInventoryDeductions(store, resolvedItems);
 
   const totals = invoiceTotals(resolvedItems);
-  const markPaid = body.markPaid !== false; // default to true (it's a "sale")
   const paymentMethod = body.paymentMethod || "Cash";
   const issueDate = body.issueDate || today();
   const dueDate = body.dueDate || issueDate;
-  const status = body.status || (markPaid ? "Paid" : "Sent");
+
+  // Resolve amount paid. Accepts either a numeric `amountPaid` (preferred) or
+  // the legacy `markPaid` boolean. Defaults to the full total — i.e. it IS a sale.
+  let amountPaid;
+  if (body.amountPaid !== undefined && body.amountPaid !== null) {
+    amountPaid = Math.min(Math.max(money(body.amountPaid), 0), totals.totalAmount);
+  } else if (body.markPaid === false) {
+    amountPaid = 0;
+  } else {
+    amountPaid = totals.totalAmount;
+  }
+  const balanceDue = Math.max(totals.totalAmount - amountPaid, 0);
+
+  let status;
+  if (body.status) status = body.status;
+  else if (balanceDue <= 0) status = "Paid";
+  else if (amountPaid > 0) status = "Partially paid";
+  else status = "Sent";
+
+  const terms = body.terms
+    ? body.terms
+    : balanceDue <= 0
+    ? "Paid in full."
+    : amountPaid > 0
+    ? `Partial payment received. Outstanding balance due.`
+    : "Payment due within 30 days.";
 
   const invoice = {
     id: uid("inv"),
@@ -80,18 +105,18 @@ router.post("/quick", (req, res) => {
     currency: body.currency || store.company.defaultCurrency,
     items: resolvedItems.map(({ inventoryId, ...rest }) => ({ ...rest, inventoryId })),
     ...totals,
-    amountPaid: markPaid ? totals.totalAmount : 0,
-    balanceDue: markPaid ? 0 : totals.totalAmount,
+    amountPaid,
+    balanceDue,
     status,
     notes: body.notes || "",
-    terms: body.terms || (markPaid ? "Paid in full." : "Payment due within 30 days."),
+    terms,
     createdAt: now(),
     updatedAt: now()
   };
   store.invoices.push(invoice);
 
   let payment = null;
-  if (markPaid) {
+  if (amountPaid > 0) {
     payment = {
       id: uid("pay"),
       paymentType: "incoming",
@@ -100,11 +125,15 @@ router.post("/quick", (req, res) => {
       invoiceId: invoice.id,
       expenseId: null,
       paymentDate: issueDate,
-      amount: totals.totalAmount,
+      amount: amountPaid,
       currency: invoice.currency,
       paymentMethod,
       reference: body.reference || `SALE-${invoice.invoiceNumber}`,
-      notes: body.paymentNotes || `Sale settlement for ${invoice.invoiceNumber}`,
+      notes:
+        body.paymentNotes ||
+        (balanceDue <= 0
+          ? `Sale settlement for ${invoice.invoiceNumber}`
+          : `Partial payment for ${invoice.invoiceNumber}`),
       createdAt: now(),
       updatedAt: now()
     };
@@ -114,6 +143,8 @@ router.post("/quick", (req, res) => {
   res.status(201).json({
     invoice: enrichInvoice(store, invoice),
     payment,
+    customer,
+    customerCreated,
     inventory: store.inventory.filter((entry) =>
       resolvedItems.some((item) => item.inventoryId === entry.id)
     )

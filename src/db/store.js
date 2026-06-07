@@ -79,11 +79,18 @@ async function loadUserFromMongo(userId) {
   loadedUserIds.add(userId);
 }
 
+// Return the user's store if it exists, without creating it.
+export async function getUser(userId) {
+  if (!userId) return null;
+  await loadUserFromMongo(userId);
+  return users[userId] || null;
+}
+
 export async function getOrCreateUser(userId, profile = {}) {
   await loadUserFromMongo(userId);
 
   if (!users[userId]) {
-    users[userId] = seedForUser({ profile });
+    users[userId] = seedForUser({ profile, ownerUserId: userId });
     await save();
     return users[userId];
   }
@@ -100,10 +107,65 @@ export async function getOrCreateUser(userId, profile = {}) {
   if (changed) {
     company.updatedAt = now();
     users[userId].company = company;
-    await save();
+    changed = true;
   }
 
+  // Make sure the owner record has the right clerkUserId
+  const members = Array.isArray(users[userId].members) ? users[userId].members : [];
+  const owner = members.find((member) => member.isOwner) || members[0];
+  if (owner && !owner.clerkUserId) {
+    owner.clerkUserId = userId;
+    owner.joinedAt = owner.joinedAt || now();
+    changed = true;
+  }
+
+  if (changed) await save();
   return users[userId];
+}
+
+// Look up an account that has invited a given email as a member.
+// Returns { ownerUserId, store, member } or null.
+export async function findAccountByMemberEmail(email) {
+  if (!email) return null;
+  const target = email.trim().toLowerCase();
+
+  if (isMongoConfigured()) {
+    const collection = await getUsersCollection();
+    const doc = await collection.findOne({ "store.members.email": target });
+    if (doc?.store) {
+      const ownerUserId = doc._id;
+      users[ownerUserId] = doc.store;
+      loadedUserIds.add(ownerUserId);
+      const member = (doc.store.members || []).find((m) => (m.email || "").toLowerCase() === target);
+      return { ownerUserId, store: doc.store, member };
+    }
+    return null;
+  }
+
+  for (const [ownerUserId, store] of Object.entries(users)) {
+    const member = (store.members || []).find((m) => (m.email || "").toLowerCase() === target);
+    if (member) return { ownerUserId, store, member };
+  }
+  return null;
+}
+
+// Attach a Clerk user id to a pending member entry (called on first sign-in).
+export async function attachClerkIdToMember(ownerUserId, memberId, clerkUserId) {
+  const store = users[ownerUserId];
+  if (!store) return;
+  const member = (store.members || []).find((m) => m.id === memberId);
+  if (!member) return;
+  let changed = false;
+  if (member.clerkUserId !== clerkUserId) {
+    member.clerkUserId = clerkUserId;
+    changed = true;
+  }
+  if (!member.joinedAt) {
+    member.joinedAt = now();
+    member.status = "active";
+    changed = true;
+  }
+  if (changed) await save();
 }
 
 export function listUsers() {

@@ -3,10 +3,16 @@ import { enrichInvoice } from "../services/invoices.js";
 import { enrichExpense } from "../services/expenses.js";
 import { dashboard, profitAndLoss } from "../services/reports.js";
 import { detectAnomalies } from "../services/anomalies.js";
+import {
+  defaultPermissions,
+  PERMISSION_ACTIONS,
+  PERMISSION_MODULES,
+  ROLES
+} from "../services/access.js";
 
 const router = Router();
 
-export function bootstrapPayload(store) {
+export function bootstrapPayload(store, options = {}) {
   return {
     company: store.company,
     customers: store.customers,
@@ -17,6 +23,15 @@ export function bootstrapPayload(store) {
     accounts: store.accounts,
     inventory: Array.isArray(store.inventory) ? store.inventory : [],
     preferences: store.preferences || null,
+    members: Array.isArray(store.members) ? store.members : [],
+    permissions: {
+      roles: ROLES,
+      modules: PERMISSION_MODULES,
+      actions: PERMISSION_ACTIONS,
+      matrix: store.permissions || defaultPermissions()
+    },
+    currentMember: options.currentMember || null,
+    workspaceUserId: options.workspaceUserId || null,
     dashboard: dashboard(store),
     reports: { profitAndLoss: profitAndLoss(store) },
     anomalies: detectAnomalies(store)
@@ -24,7 +39,12 @@ export function bootstrapPayload(store) {
 }
 
 router.get("/", (req, res) => {
-  res.json(bootstrapPayload(req.store));
+  res.json(
+    bootstrapPayload(req.store, {
+      currentMember: req.currentMember,
+      workspaceUserId: req.workspaceUserId
+    })
+  );
 });
 
 export default router;

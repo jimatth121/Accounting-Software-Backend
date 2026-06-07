@@ -3,6 +3,7 @@ import express from "express";
 import morgan from "morgan";
 
 import { userContext } from "./middleware/userContext.js";
+import { requirePermission } from "./middleware/permissions.js";
 
 import demoRoutes from "./routes/demo.js";
 import metaRoutes from "./routes/meta.js";
@@ -17,6 +18,8 @@ import inventoryRoutes from "./routes/inventory.js";
 import preferencesRoutes from "./routes/preferences.js";
 import ledgerRoutes from "./routes/ledger.js";
 import salesRoutes from "./routes/sales.js";
+import membersRoutes from "./routes/members.js";
+import permissionsRoutes from "./routes/permissions.js";
 import reportsRoutes from "./routes/reports.js";
 import aiRoutes from "./routes/ai.js";
 
@@ -51,17 +54,19 @@ app.use("/api", userContext);
 
 app.use("/api/account", accountRoutes);
 app.use("/api/bootstrap", metaRoutes);
-app.use("/api/company", companyRoutes);
-app.use("/api/customers", customersRoutes);
-app.use("/api/vendors", vendorsRoutes);
-app.use("/api/invoices", invoicesRoutes);
-app.use("/api/expenses", expensesRoutes);
-app.use("/api/payments", paymentsRoutes);
-app.use("/api/inventory", inventoryRoutes);
+app.use("/api/company", requirePermission("Company"), companyRoutes);
+app.use("/api/customers", requirePermission("Customers"), customersRoutes);
+app.use("/api/vendors", requirePermission("Vendors"), vendorsRoutes);
+app.use("/api/invoices", requirePermission("Invoices"), invoicesRoutes);
+app.use("/api/expenses", requirePermission("Expenses"), expensesRoutes);
+app.use("/api/payments", requirePermission("Payments"), paymentsRoutes);
+app.use("/api/inventory", requirePermission("Inventory"), inventoryRoutes);
 app.use("/api/preferences", preferencesRoutes);
-app.use("/api/ledger", ledgerRoutes);
-app.use("/api/sales", salesRoutes);
-app.use("/api/reports", reportsRoutes);
-app.use("/api/ai", aiRoutes);
+app.use("/api/ledger", requirePermission("Ledger"), ledgerRoutes);
+app.use("/api/sales", requirePermission("Invoices"), salesRoutes);
+app.use("/api/members", membersRoutes);
+app.use("/api/permissions", permissionsRoutes);
+app.use("/api/reports", requirePermission("Reports"), reportsRoutes);
+app.use("/api/ai", requirePermission("AI Assistant"), aiRoutes);
 
 export default app;
